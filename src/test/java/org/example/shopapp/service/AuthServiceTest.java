@@ -1,10 +1,11 @@
 package org.example.shopapp.service;
 
-import org.example.shopapp.dto.request.LoginRequest;
-import org.example.shopapp.dto.request.RegisterRequest;
-import org.example.shopapp.entity.User;
-import org.example.shopapp.repository.UserRepository;
-import org.example.shopapp.security.JwtUtil;
+import org.example.shopapp.auth.dto.request.LoginRequest;
+import org.example.shopapp.auth.dto.request.RegisterRequest;
+import org.example.shopapp.common.entity.User;
+import org.example.shopapp.auth.repository.UserRepository;
+import org.example.shopapp.common.security.JwtUtil;
+import org.example.shopapp.auth.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
