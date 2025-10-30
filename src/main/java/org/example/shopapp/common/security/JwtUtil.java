@@ -51,6 +51,16 @@ public class JwtUtil {
     private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
+
+    public boolean isExpired(String token) {
+        try {
+            return isTokenExpired(token);
+        } catch (ExpiredJwtException e) {
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
     
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
@@ -98,5 +108,14 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
         return createToken(claims, userDetails.getUsername());
+    }
+
+    public boolean isRefreshToken(String token) {
+        try {
+            final Claims claims = extractAllClaims(token);
+            return "refresh".equals(claims.get("type"));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 }

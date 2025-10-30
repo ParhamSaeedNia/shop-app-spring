@@ -9,6 +9,8 @@ import org.example.shopapp.auth.dto.response.UserResponse;
 import org.example.shopapp.common.entity.User;
 import org.example.shopapp.common.exception.UserNotFoundException;
 import org.example.shopapp.auth.repository.UserRepository;
+import org.example.shopapp.common.entity.Token;
+import org.example.shopapp.common.repository.TokenRepository;
 import org.example.shopapp.common.security.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,6 +31,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private final TokenRepository tokenRepository;
     
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -58,6 +61,8 @@ public class AuthService {
         // Generate tokens
         String accessToken = jwtUtil.generateToken(user);
         String refreshToken = jwtUtil.generateRefreshToken(user);
+
+        persistRefreshToken(user, refreshToken);
         
         UserResponse userResponse = mapToUserResponse(user);
         
@@ -65,7 +70,7 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(86400000L) // 24 hours
+                .expiresIn(86400000L)
                 .user(userResponse)
                 .build();
     }
@@ -84,6 +89,10 @@ public class AuthService {
         
         String accessToken = jwtUtil.generateToken(user);
         String refreshToken = jwtUtil.generateRefreshToken(user);
+
+        // revoke old refresh tokens for the user
+        tokenRepository.deleteByUserAndType(user, Token.TokenType.REFRESH);
+        persistRefreshToken(user, refreshToken);
         
         UserResponse userResponse = mapToUserResponse(user);
         
@@ -91,9 +100,21 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(86400000L) // 24 hours
+                .expiresIn(86400000L)
                 .user(userResponse)
                 .build();
+    }
+
+    private void persistRefreshToken(User user, String refreshToken) {
+        Token token = Token.builder()
+                .user(user)
+                .token(refreshToken)
+                .type(Token.TokenType.REFRESH)
+                .expiresAt(java.time.LocalDateTime.now().plusDays(1))
+                .revoked(false)
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
+        tokenRepository.save(token);
     }
     
     public UserResponse getCurrentUser() {
@@ -125,6 +146,15 @@ public class AuthService {
         } catch (ClassCastException e) {
             log.error("Authentication principal type error: {}", e.getMessage());
             throw new UserNotFoundException("Authentication error. Please log in again.");
+        }
+    }
+
+    @Transactional
+    public void logout() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            User user = (User) authentication.getPrincipal();
+            tokenRepository.deleteByUserAndType(user, Token.TokenType.REFRESH);
         }
     }
     
